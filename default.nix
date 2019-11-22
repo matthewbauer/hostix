@@ -1,17 +1,19 @@
 { lib, pkgs, config, ... }:
 
-{
+let
+  cfg = config.hostix;
+  inherit (config.networking) hostName;
+  hosts = builtins.fromJSON (builtins.readFile cfg.hostsFile);
+
+in {
   options.hostix.hostsFile = lib.mkOption {
-    type = lib.types.file;
+    type = lib.types.path;
     description = ''
       JSON file to read hosts list from.
     '';
   };
 
-  config = let
-    hosts = builtins.fromJSON (builtins.readFile config.hostsFile);
-    inherit (config.networking) hostName;
-  in {
+  config = {
 
     nix = {
       binaryCaches = map (v: "https://${v.domain}${lib.optionalString (v ? cachePort) ":${toString v.cachePort}"}")
@@ -36,23 +38,22 @@
           User ${value.user}
           Port ${toString (value.ssh or 22)}
           ${lib.optionalString (value ? jump) "  ProxyJump ${value.jump}"}
-      '') hosts);
+       '') hosts);
 
-  } // lib.optionalAttrs (!(hosts.${hostName} ? jump) && hosts.${hostName} ? ssh) {
-    systemd.services.port-map = {
+    systemd.services.port-map = lib.mkIf (!(hosts.${hostName} ? jump) && hosts.${hostName} ? ssh) {
       wantedBy = [ "multi-user.target" ];
       after = [ "network.target" ];
       serviceConfig = {
         Type = "oneshot";
-        ExecStart = "${pkgs.miniupnpc}/bin/upnpc -r 22 ${toString hosts.${hostName}.ssh} tcp";
+        ExecStart = "${pkgs.miniupnpc}/bin/upnpc -r 22 ${toString hosts.${hostName}.ssh or 22} tcp";
       };
     };
 
-  } // lib.optionalAttrs (!(hosts.${hostName} ? jump) && hosts.${hostName} ? ddclient) {
-    services.ddclient = {
+    services.ddclient = lib.mkIf (!(hosts.${hostName} ? jump) && hosts.${hostName} ? ddclient) {
       enable = true;
       domains = [ "${hosts.${hostName}.domain}" ];
     } // hosts.${hostName}.ddclient;
+
   };
 
 
