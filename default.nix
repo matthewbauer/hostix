@@ -35,10 +35,10 @@ in {
       (name: value: ''
         Host ${name}
           Hostname ${value.domain}
-          User ${value.user}
+          User ${value.sshUser}
           Port ${toString (value.ssh or 22)}
           ${lib.optionalString (value ? jump) "  ProxyJump ${value.jump}"}
-       '') hosts);
+       '') (lib.filterAttrs (_: v: v ? ssh) hosts));
 
     systemd.services.port-map = lib.mkIf (!(hosts.${hostName} ? jump) && hosts.${hostName} ? ssh) {
       wantedBy = [ "multi-user.target" ];
