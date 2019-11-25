@@ -16,6 +16,11 @@ in {
   config = {
 
     nix = {
+      distributedBuilds = true;
+      extraOptions = ''
+        builders-use-substitutes = true
+      '';
+
       binaryCaches = map (v: "https://${v.domain}${lib.optionalString (v ? cachePort) ":${toString v.cachePort}"}")
                          (lib.attrValues (lib.filterAttrs (_: v: v.cache or false) hosts));
       binaryCachePublicKeys = map (v: v.cachePublicKey)
@@ -24,6 +29,7 @@ in {
         hostName = name;
         sshUser = value.sshUser;
         sshKey = value.sshKey;
+        speedFactor = value.speedFactor or 1;
         system = value.system;
         maxJobs = value.maxJobs or 1;
         supportedFeatures = value.supportedFeatures or [];
